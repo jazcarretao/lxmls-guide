@@ -11,7 +11,7 @@ graph and all what we saw on the first day applies with no need for extra math.
 If you managed to finish the previous day completely you should aim at finishing
 this as well. If you still have pending exercises from the first day e.g. the
 Pytorch part. It is recommended that you try to solve them first and then
-continue with this day. 
+continue with this day.
 
 \section{Recurrent Neural Networks: Backpropagation Through Time}
 
@@ -84,16 +84,16 @@ $\Theta=\{\mathbf{W}^e \in \mathbb{R}^{E \times I}, \mathbf{W}^x \in \mathbb{R}^
 
 	\FOR{$m=1$ {\bfseries to} $M'$}
      \STATE Apply embedding layer 
-        $$m_{dm} = \sum_{i=1}^{I} W^e_{di} x_{dm}$$
+        $$z_{dm}^e = \sum_{i=1}^{I} W^e_{di} x_{im}$$
      \STATE Apply linear transformation combining embedding and recurrent signals
-        $$z_{jm}^h = \sum_{d=1}^{E} W_{jd}^x m_{dm} + \sum_{j'=1}^{J} W_{jj'}^h h_{j'm-1}$$
+        $$z_{jm}^h = \sum_{d=1}^{E} W_{jd}^x z_{dm}^e + \sum_{j'=1}^{J} W_{jj'}^h h_{j'm-1}$$
      \STATE Apply non-linear transformation e.g. sigmoid (hereby denoted $\sigma()$)
-     $$h_{jm} = \sigma(z_{jm}^h)  = \frac{1}{1+\exp(-z_{jm}^h)}$$
+        $$h_{jm} = \sigma(z_{jm}^h)  = \frac{1}{1+\exp(-z_{jm}^h)}$$
 
 	\ENDFOR
 
-\STATE Apply final linear transformation to each of the recurrent variables $\mathbf{h}_1 \cdots \mathbf{h}_M'$ 
-   $$z_{km}^y = \sum_{j=1}^{J} W_{kj}^y h_{jm}$$
+        \STATE Apply final linear transformation to each of the recurrent variables $\mathbf{h}_1 \cdots \mathbf{h}_{M'}$ 
+$$z_{km}^y = \sum_{j=1}^{J} W_{kj}^y h_{jm}$$
 \STATE Apply final non-linear transformation e.g. softmax 
    $$p(y_m=k|\mathbf{x}_{1:m+1}) = \tilde{z}_{km}^y  = \frac{\exp(z_{km}^y)}{\sum_{k'=1}^{K} \exp(z_{k'm}^y)}$$
 \end{algorithmic}
@@ -116,32 +116,41 @@ $\Theta=\{\mathbf{W}^e \in \mathbb{R}^{E \times I}, \mathbf{W}^x \in \mathbb{R}^
 	\vspace{0.3cm}
 	\FOR{$m=1$ {\bfseries to} $M'$}
         \STATE Compute the {forward pass} for sentence $b$ ($M'$ time steps);
-        keep not only $\tilde{z}_{km}^y$ but also, the RNN layer activations $z_{jt}^h$ and the embedding layer activations $z^e_{di}$.
+        keep not only $\tilde{z}_{km}^y$ but also, the RNN layer activations $h_{jt}$ and the embedding layer activations $z^e_{di}$.
 	\ENDFOR	
 	\vspace{0.3cm}
 
     % Intial Error
 	\FOR{$m=1$ {\bfseries to} $M'$}
-    \STATE {Initialize the error at last layer, for each example $m$. For the softmax with CE cost this is given by:
-        $$\mathbf{e}^{m} = \Big(\mathrm{\mathbf{1}}_{k(m)} - \tilde{\mathbf{z}}_{m}^y \Big).$$}
+    \STATE {Initialize the error at last layer for a CE cost and backpropagate it through the output linear layer:
+        $$\mathbf{e}^m_{y} = (\mathbf{W}^y)^T \Big(\mathrm{\mathbf{1}}_{k(m)} - \tilde{\mathbf{z}}_{m}^y \Big).$$}
 	\ENDFOR	
 
-    \STATE Initialize recurrent layer error $$\mathbf{e}_h$$ to a vector of zeros
-   	\FOR{$m=M'-1$ {\bfseries to} $2$}
-	\STATE {Backpropagate} the error from output to recurrent layer:
-    $$\mathbf{e}^{m-1} = \Big((\mathbf{W}^y)^T \mathbf{e}^{m}\Big) + \mathbf{e}^{m}$$
+    \STATE Initialize recurrent layer error $\mathbf{e}_r$ to a vector of zeros of size $H$
+   	\FOR{$m=M'$ {\bfseries to} $2$}
+	\STATE Add the recurrent layer backpropagated error and backpropagate through the sigmoid non-linearity:
+        $$\mathbf{e}^m_{h} = \Big(\mathbf{e}_{r} + \mathbf{e}^m_y\Big) \odot \mathbf{h}_m \odot (\mathbf{\mathrm{1}}-\mathbf{h}_m)$$
 
-	\STATE {Backpropagate} the error through the non-linearity, for the sigmoid this is:
-    $$\mathbf{e}^{m,n} = \mathbf{e}^{m} \odot \tilde{\mathbf{z}}^{m,n} \odot (\mathbf{\mathrm{1}}-\tilde{\mathbf{z}}^{m,n}),$$
-    where $\odot$ is the element-wise product and the $\mathbf{\mathrm{1}}$ is replicated to match the size of $\tilde{\mathbf{z}}^n$.
+	\STATE where $\odot$ is the element-wise product and the $\mathbf{\mathrm{1}}$ is replicated to match the size of $\tilde{\mathbf{h}}^n$.
+
+	\STATE {Backpropagate} the error through the recurrent linear layer
+    $$\mathbf{e}_r = (\mathbf{W}^h)^T \mathbf{e}_h$$
+
+	\STATE {Backpropagate} the error through the input linear layer
+    $$\mathbf{e}^m_e = (\mathbf{W}^x)^T \mathbf{e}_h$$
 
 	\ENDFOR	
 
 	\vspace{0.3cm}
-    \STATE {Compute the gradients} using the backpropagated errors and the inputs from the forward pass
+    \STATE {Compute the gradients} using the backpropagated errors and the inputs from the forward pass. For example for the recurrent layer
 
-    $$\nabla_{\mathbf{W}^n}\mathcal{F}(\mathcal{D_b};\Theta)  = -\frac{1}{M'} \sum_{m=1}^{M'} \mathbf{e}^{m,n} \cdot \left(\tilde{\mathbf{z}}^{m,n-1}\right)^T,$$
-    $$\nabla_{\mathbf{b}^n}\mathcal{F}(\mathcal{D_b};\Theta)  = - \frac{1}{M'} \sum_{m=1}^{M'} \mathbf{e}^{m,n}.$$
+        $$\nabla_{\mathbf{W}^h}\mathcal{F}(\mathcal{D_b};\Theta)  = -\frac{1}{M'} \sum_{m=1}^{M'} \mathbf{e}^m_h \cdot \left(\mathbf{h}_{m-1}\right)^T,$$
+
+    For the input layer
+
+        $$\nabla_{\mathbf{W}^x}\mathcal{F}(\mathcal{D_b};\Theta)  = -\frac{1}{M'} \sum_{m=1}^{M'} \mathbf{e}^m_h \cdot \left(\mathbf{z}^e_{m}\right)^T,$$
+
+    Take into account that for the embedding layer 
 
 	\vspace{0.3cm}
     \STATE Update the parameters
