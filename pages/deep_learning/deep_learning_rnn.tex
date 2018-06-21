@@ -116,7 +116,7 @@ $$z_{km}^y = \sum_{j=1}^{J} W_{kj}^y h_{jm}$$
 	\vspace{0.3cm}
 	\FOR{$m=1$ {\bfseries to} $M'$}
         \STATE Compute the {forward pass} for sentence $b$ ($M'$ time steps);
-        keep not only $\tilde{z}_{km}^y$ but also, the RNN layer activations $h_{jt}$ and the embedding layer activations $z^e_{di}$.
+        keep not only $\tilde{z}_{km}^y$ but also, the RNN layer activations $h_{jm}$ and the embedding layer activations $z^e_{dm}$.
 	\ENDFOR	
 	\vspace{0.3cm}
 
@@ -127,17 +127,14 @@ $$z_{km}^y = \sum_{j=1}^{J} W_{kj}^y h_{jm}$$
 	\ENDFOR	
 
     \STATE Initialize recurrent layer error $\mathbf{e}_r$ to a vector of zeros of size $H$
-   	\FOR{$m=M'$ {\bfseries to} $2$}
+   	\FOR{$m=M'$ {\bfseries to} $1$}
 	\STATE Add the recurrent layer backpropagated error and backpropagate through the sigmoid non-linearity:
         $$\mathbf{e}^m_{h} = \Big(\mathbf{e}_{r} + \mathbf{e}^m_y\Big) \odot \mathbf{h}_m \odot (\mathbf{\mathrm{1}}-\mathbf{h}_m)$$
 
-	\STATE where $\odot$ is the element-wise product and the $\mathbf{\mathrm{1}}$ is replicated to match the size of $\tilde{\mathbf{h}}^n$.
+	\STATE where $\odot$ is the element-wise product and the $\mathbf{\mathrm{1}}$ is replicated to match the size of $\mathbf{h}^n$.
 
 	\STATE {Backpropagate} the error through the recurrent linear layer
     $$\mathbf{e}_r = (\mathbf{W}^h)^T \mathbf{e}_h$$
-
-	\STATE {Backpropagate} the error through the input linear layer
-    $$\mathbf{e}^m_e = (\mathbf{W}^x)^T \mathbf{e}_h$$
 
 	\ENDFOR	
 
@@ -150,13 +147,11 @@ $$z_{km}^y = \sum_{j=1}^{J} W_{kj}^y h_{jm}$$
 
         $$\nabla_{\mathbf{W}^x}\mathcal{F}(\mathcal{D_b};\Theta)  = -\frac{1}{M'} \sum_{m=1}^{M'} \mathbf{e}^m_h \cdot \left(\mathbf{z}^e_{m}\right)^T,$$
 
-    Take into account that for the embedding layer 
+    Take into account that for the embedding layer e.g.
 
 	\vspace{0.3cm}
     \STATE Update the parameters
-        $$\mathbf{W}^n \leftarrow \mathbf{W}^n - \eta \nabla_\mathbf{W^n}\mathcal{F},$$
-        $$\mathbf{b}^n \leftarrow \mathbf{b}^n - \eta \nabla_\mathbf{b^n}\mathcal{F}.$$
-
+        $$\mathbf{W}^x \leftarrow \mathbf{W}^x - \eta \nabla_\mathbf{W^x}\mathcal{F},$$
 	\ENDFOR
 	\ENDFOR
 \end{algorithmic}
